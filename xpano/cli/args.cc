@@ -3,14 +3,17 @@
 
 #include "xpano/cli/args.h"
 
+#include <charconv>
 #include <exception>
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <spdlog/spdlog.h>
 
+#include "xpano/algorithm/options.h"
 #include "xpano/constants.h"
 #include "xpano/utils/fmt.h"
 #include "xpano/utils/path.h"
@@ -19,13 +22,65 @@ namespace xpano::cli {
 
 namespace {
 
-// Custom args parsing...
-// TODO(krupkat): move to cxxopts / cli11 when adding new arguments
-
 const std::string kGuiFlag = "--gui";
 const std::string kOutputFlag = "--output=";
 const std::string kHelpFlag = "--help";
 const std::string kVersionFlag = "--version";
+const std::string kProjectionFlag = "--projection=";
+const std::string kMatchThresholdFlag = "--match-threshold=";
+const std::string kMinShiftFlag = "--min-shift=";
+const std::string kJpegQualityFlag = "--jpeg-quality=";
+const std::string kPngCompressionFlag = "--png-compression=";
+const std::string kCopyMetadataFlag = "--copy-metadata";
+const std::string kNoCopyMetadataFlag = "--no-copy-metadata";
+const std::string kWaveCorrectionFlag = "--wave-correction=";
+const std::string kMaxPanoMpxFlag = "--max-pano-mpx=";
+
+std::optional<int> ParseInt(const std::string& str) {
+  int value;
+  auto result = std::from_chars(str.data(), str.data() + str.size(), value);
+  if (result.ec == std::errc() && result.ptr == str.data() + str.size()) {
+    return value;
+  }
+  return std::nullopt;
+}
+
+std::optional<float> ParseFloat(const std::string& str) {
+  try {
+    size_t pos;
+    float value = std::stof(str, &pos);
+    if (pos == str.size()) {
+      return value;
+    }
+  } catch (...) {
+  }
+  return std::nullopt;
+}
+
+std::optional<algorithm::ProjectionType> ParseProjectionType(
+    const std::string& str) {
+  if (str == "perspective") return algorithm::ProjectionType::kPerspective;
+  if (str == "cylindrical") return algorithm::ProjectionType::kCylindrical;
+  if (str == "spherical") return algorithm::ProjectionType::kSpherical;
+  if (str == "fisheye") return algorithm::ProjectionType::kFisheye;
+  if (str == "stereographic") return algorithm::ProjectionType::kStereographic;
+  if (str == "rectilinear")
+    return algorithm::ProjectionType::kCompressedRectilinear;
+  if (str == "panini") return algorithm::ProjectionType::kPanini;
+  if (str == "mercator") return algorithm::ProjectionType::kMercator;
+  if (str == "transverse-mercator")
+    return algorithm::ProjectionType::kTransverseMercator;
+  return std::nullopt;
+}
+
+std::optional<algorithm::WaveCorrectionType> ParseWaveCorrectionType(
+    const std::string& str) {
+  if (str == "off") return algorithm::WaveCorrectionType::kOff;
+  if (str == "auto") return algorithm::WaveCorrectionType::kAuto;
+  if (str == "horizontal") return algorithm::WaveCorrectionType::kHorizontal;
+  if (str == "vertical") return algorithm::WaveCorrectionType::kVertical;
+  return std::nullopt;
+}
 
 void ParseArg(Args* result, const std::string& arg) {
   if (arg == kGuiFlag) {
@@ -37,6 +92,31 @@ void ParseArg(Args* result, const std::string& arg) {
   } else if (arg.starts_with(kOutputFlag)) {
     auto substr = arg.substr(kOutputFlag.size());
     result->output_path = std::filesystem::path(substr);
+  } else if (arg.starts_with(kProjectionFlag)) {
+    auto substr = arg.substr(kProjectionFlag.size());
+    result->projection = ParseProjectionType(substr);
+  } else if (arg.starts_with(kMatchThresholdFlag)) {
+    auto substr = arg.substr(kMatchThresholdFlag.size());
+    result->match_threshold = ParseInt(substr);
+  } else if (arg.starts_with(kMinShiftFlag)) {
+    auto substr = arg.substr(kMinShiftFlag.size());
+    result->min_shift = ParseFloat(substr);
+  } else if (arg.starts_with(kJpegQualityFlag)) {
+    auto substr = arg.substr(kJpegQualityFlag.size());
+    result->jpeg_quality = ParseInt(substr);
+  } else if (arg.starts_with(kPngCompressionFlag)) {
+    auto substr = arg.substr(kPngCompressionFlag.size());
+    result->png_compression = ParseInt(substr);
+  } else if (arg == kCopyMetadataFlag) {
+    result->copy_metadata = true;
+  } else if (arg == kNoCopyMetadataFlag) {
+    result->copy_metadata = false;
+  } else if (arg.starts_with(kWaveCorrectionFlag)) {
+    auto substr = arg.substr(kWaveCorrectionFlag.size());
+    result->wave_correction = ParseWaveCorrectionType(substr);
+  } else if (arg.starts_with(kMaxPanoMpxFlag)) {
+    auto substr = arg.substr(kMaxPanoMpxFlag.size());
+    result->max_pano_mpx = ParseInt(substr);
   } else {
     result->input_paths.emplace_back(arg);
   }
@@ -68,6 +148,48 @@ bool ValidateArgs(const Args& args) {
         "Specifying --gui and --output together is not yet supported.");
     return false;
   }
+  if (args.match_threshold.has_value() && !args.match_threshold.value()) {
+    spdlog::error("Invalid value for --match-threshold");
+    return false;
+  }
+  if (args.match_threshold.has_value()) {
+    int val = *args.match_threshold;
+    if (val < kMinMatchThreshold || val > kMaxMatchThreshold) {
+      spdlog::error("--match-threshold must be between {} and {}",
+                    kMinMatchThreshold, kMaxMatchThreshold);
+      return false;
+    }
+  }
+  if (args.min_shift.has_value()) {
+    float val = *args.min_shift;
+    if (val < kMinShiftInPano || val > kMaxShiftInPano) {
+      spdlog::error("--min-shift must be between {} and {}", kMinShiftInPano,
+                    kMaxShiftInPano);
+      return false;
+    }
+  }
+  if (args.jpeg_quality.has_value()) {
+    int val = *args.jpeg_quality;
+    if (val < 0 || val > kMaxJpegQuality) {
+      spdlog::error("--jpeg-quality must be between 0 and {}", kMaxJpegQuality);
+      return false;
+    }
+  }
+  if (args.png_compression.has_value()) {
+    int val = *args.png_compression;
+    if (val < 0 || val > kMaxPngCompression) {
+      spdlog::error("--png-compression must be between 0 and {}",
+                    kMaxPngCompression);
+      return false;
+    }
+  }
+  if (args.max_pano_mpx.has_value()) {
+    int val = *args.max_pano_mpx;
+    if (val < 1 || val > 500) {
+      spdlog::error("--max-pano-mpx must be between 1 and 500");
+      return false;
+    }
+  }
   return true;
 }
 
@@ -97,8 +219,40 @@ std::optional<Args> ParseArgs(int argc, char** argv) {
 }
 
 void PrintHelp() {
-  spdlog::info("Usage: Xpano [<input files>] [--output=<path>]");
-  spdlog::info("\t[--gui] [--help] [--version]");
+  spdlog::info("Usage: Xpano [<input files>] [options]");
+  spdlog::info("");
+  spdlog::info("Options:");
+  spdlog::info("  --output=<path>          Output file path");
+  spdlog::info("  --gui                    Launch GUI mode");
+  spdlog::info("  --help                   Show this help message");
+  spdlog::info("  --version                Show version");
+  spdlog::info("");
+  spdlog::info("Projection:");
+  spdlog::info("  --projection=<type>      Projection type (default: spherical)");
+  spdlog::info("                           Types: perspective, cylindrical, spherical,");
+  spdlog::info("                           fisheye, stereographic, rectilinear, panini,");
+  spdlog::info("                           mercator, transverse-mercator");
+  spdlog::info("");
+  spdlog::info("Matching:");
+  spdlog::info("  --match-threshold=<N>    Match threshold, {} - {} (default: {})",
+               kMinMatchThreshold, kMaxMatchThreshold, kDefaultMatchThreshold);
+  spdlog::info("  --min-shift=<F>          Min shift filter, {} - {} (default: {})",
+               kMinShiftInPano, kMaxShiftInPano, kDefaultShiftInPano);
+  spdlog::info("");
+  spdlog::info("Export:");
+  spdlog::info("  --jpeg-quality=<N>       JPEG quality, 0 - {} (default: {})",
+               kMaxJpegQuality, kDefaultJpegQuality);
+  spdlog::info("  --png-compression=<N>    PNG compression, 0 - {} (default: {})",
+               kMaxPngCompression, kDefaultPngCompression);
+  spdlog::info("  --copy-metadata          Copy EXIF from first image");
+  spdlog::info("  --no-copy-metadata       Don't copy EXIF metadata");
+  spdlog::info("");
+  spdlog::info("Stitching:");
+  spdlog::info("  --wave-correction=<type> Wave correction (default: auto)");
+  spdlog::info("                           Types: off, auto, horizontal, vertical");
+  spdlog::info("  --max-pano-mpx=<N>       Max panorama size in megapixels (default: {})",
+               kMaxPanoMpx);
+  spdlog::info("");
   spdlog::info("Supported formats: {}", fmt::join(kSupportedExtensions, ", "));
 }
 

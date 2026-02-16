@@ -54,9 +54,19 @@ void PrintVersion() { spdlog::info("Xpano version {}", version::Current()); }
 ResultType RunPipeline(const Args &args) {
   pipeline::StitcherPipeline<pipeline::RunTraits::kReturnFuture> pipeline;
 
+  // Build MatchingOptions from args
+  pipeline::MatchingOptions matching_opts{
+      .type = pipeline::MatchingType::kSinglePano};
+  if (args.match_threshold) {
+    matching_opts.match_threshold = *args.match_threshold;
+  }
+  if (args.min_shift) {
+    matching_opts.min_shift = *args.min_shift;
+  }
+
   auto loading_task = pipeline.RunLoading(
       args.input_paths, {.preview_longer_side = kMaxImageSizeForCLI},
-      {.type = pipeline::MatchingType::kSinglePano});
+      matching_opts);
 
   pipeline::StitcherData stitcher_data;
 
@@ -83,8 +93,39 @@ ResultType RunPipeline(const Args &args) {
           ? *args.output_path
           : std::filesystem::path(stitcher_data.images[0].PanoName());
 
+  // Build CompressionOptions from args
+  pipeline::CompressionOptions compression_opts;
+  if (args.jpeg_quality) {
+    compression_opts.jpeg_quality = *args.jpeg_quality;
+  }
+  if (args.png_compression) {
+    compression_opts.png_compression = *args.png_compression;
+  }
+
+  // Build MetadataOptions from args
+  pipeline::MetadataOptions metadata_opts;
+  if (args.copy_metadata) {
+    metadata_opts.copy_from_first_image = *args.copy_metadata;
+  }
+
+  // Build StitchAlgorithmOptions from args
+  pipeline::StitchAlgorithmOptions stitch_opts;
+  if (args.projection) {
+    stitch_opts.projection.type = *args.projection;
+  }
+  if (args.wave_correction) {
+    stitch_opts.wave_correction = *args.wave_correction;
+  }
+  if (args.max_pano_mpx) {
+    stitch_opts.max_pano_mpx = *args.max_pano_mpx;
+  }
+
   auto stitching_task = pipeline.RunStitching(
-      stitcher_data, {.pano_id = 0, .export_path = export_path});
+      stitcher_data, {.pano_id = 0,
+                      .export_path = export_path,
+                      .metadata = metadata_opts,
+                      .compression = compression_opts,
+                      .stitch_algorithm = stitch_opts});
 
   pipeline::StitchingResult stitching_result;
 
