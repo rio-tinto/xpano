@@ -56,7 +56,10 @@ ResultType RunPipeline(const Args &args) {
 
   // Build MatchingOptions from args
   pipeline::MatchingOptions matching_opts{
-      .type = pipeline::MatchingType::kSinglePano};
+      .type = pipeline::MatchingType::kAuto};  // Default to auto for better results
+  if (args.matching_type) {
+    matching_opts.type = *args.matching_type;
+  }
   if (args.match_threshold) {
     matching_opts.match_threshold = *args.match_threshold;
   }

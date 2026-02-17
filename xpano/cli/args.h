@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "xpano/algorithm/options.h"
+#include "xpano/pipeline/options.h"
 
 namespace xpano::cli {
 
@@ -22,6 +23,7 @@ struct Args {
   std::optional<algorithm::ProjectionType> projection;
 
   // Matching
+  std::optional<pipeline::MatchingType> matching_type;
   std::optional<int> match_threshold;
   std::optional<float> min_shift;
 

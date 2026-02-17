@@ -28,6 +28,7 @@ const std::string kOutputFlag = "--output=";
 const std::string kHelpFlag = "--help";
 const std::string kVersionFlag = "--version";
 const std::string kProjectionFlag = "--projection=";
+const std::string kMatchingTypeFlag = "--matching-type=";
 const std::string kMatchThresholdFlag = "--match-threshold=";
 const std::string kMinShiftFlag = "--min-shift=";
 const std::string kJpegQualityFlag = "--jpeg-quality=";
@@ -83,6 +84,14 @@ std::optional<algorithm::WaveCorrectionType> ParseWaveCorrectionType(
   return std::nullopt;
 }
 
+std::optional<pipeline::MatchingType> ParseMatchingType(
+    const std::string& str) {
+  if (str == "auto") return pipeline::MatchingType::kAuto;
+  if (str == "single") return pipeline::MatchingType::kSinglePano;
+  if (str == "none") return pipeline::MatchingType::kNone;
+  return std::nullopt;
+}
+
 void ParseArg(Args* result, const std::string& arg) {
   if (arg == kGuiFlag) {
     result->run_gui = true;
@@ -96,6 +105,9 @@ void ParseArg(Args* result, const std::string& arg) {
   } else if (arg.starts_with(kProjectionFlag)) {
     auto substr = arg.substr(kProjectionFlag.size());
     result->projection = ParseProjectionType(substr);
+  } else if (arg.starts_with(kMatchingTypeFlag)) {
+    auto substr = arg.substr(kMatchingTypeFlag.size());
+    result->matching_type = ParseMatchingType(substr);
   } else if (arg.starts_with(kMatchThresholdFlag)) {
     auto substr = arg.substr(kMatchThresholdFlag.size());
     result->match_threshold = ParseInt(substr);
@@ -147,6 +159,10 @@ bool ValidateArgs(const Args& args) {
   if (args.output_path && args.run_gui) {
     spdlog::error(
         "Specifying --gui and --output together is not yet supported.");
+    return false;
+  }
+  if (args.matching_type.has_value() && !args.matching_type.value()) {
+    spdlog::error("Invalid value for --matching-type. Use: auto, single, none");
     return false;
   }
   if (args.match_threshold.has_value() && !args.match_threshold.value()) {
@@ -242,6 +258,8 @@ std::optional<Args> ParseArgs(int argc, char** argv) {
 }
 
 void PrintHelp() {
+  spdlog::info("Xpano v1.3 - added matching type flag");
+  spdlog::info("");
   spdlog::info("Usage: Xpano [<input files or directories>] [options]");
   spdlog::info("");
   spdlog::info("Options:");
@@ -257,6 +275,11 @@ void PrintHelp() {
   spdlog::info("                           mercator, transverse-mercator");
   spdlog::info("");
   spdlog::info("Matching:");
+  spdlog::info("  --matching-type=<type>   Matching mode (default: auto)");
+  spdlog::info("                           Types: auto, single, none");
+  spdlog::info("                           auto: pairwise matching, recommended");
+  spdlog::info("                           single: assume all images form one pano");
+  spdlog::info("                           none: skip matching");
   spdlog::info("  --match-threshold=<N>    Match threshold, {} - {} (default: {})",
                kMinMatchThreshold, kMaxMatchThreshold, kDefaultMatchThreshold);
   spdlog::info("  --min-shift=<F>          Min shift filter, {} - {} (default: {})",
