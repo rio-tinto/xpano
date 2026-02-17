@@ -47,7 +47,7 @@ jobs:
     - name: Install OpenCV
       if: steps.cache-opencv.outputs.cache-hit != 'true'
       run: |
-        git clone https://github.com/opencv/opencv.git --depth 1 --branch $OPENCV_VERSION
+        git clone https://github.com/opencv/opencv.git opencv --depth 1 --branch $OPENCV_VERSION
         cd opencv
         cmake -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -68,7 +68,7 @@ jobs:
     - name: Install SDL
       if: steps.cache-sdl.outputs.cache-hit != 'true'
       run: |
-        git clone https://github.com/libsdl-org/SDL.git --depth 1 --branch $SDL_VERSION
+        git clone https://github.com/libsdl-org/SDL.git sdl --depth 1 --branch $SDL_VERSION
         cd sdl
         cmake -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -108,7 +108,7 @@ jobs:
     - name: Install spdlog
       if: steps.cache-spdlog.outputs.cache-hit != 'true'
       run: |
-        git clone https://github.com/gabime/spdlog.git --depth 1 --branch $SPDLOG_VERSION
+        git clone https://github.com/gabime/spdlog.git spdlog --depth 1 --branch $SPDLOG_VERSION
         cd spdlog
         cmake -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -127,7 +127,7 @@ jobs:
     - name: Install exiv2
       if: steps.cache-exiv2.outputs.cache-hit != 'true'
       run: |
-        git clone https://github.com/Exiv2/exiv2.git --depth 1 --branch $EXIV2_VERSION
+        git clone https://github.com/Exiv2/exiv2.git exiv2 --depth 1 --branch $EXIV2_VERSION
         cd exiv2
         cmake -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
