@@ -13,7 +13,10 @@ permissions:
 
 env:
   BUILD_TYPE: Release
+  SDL_VERSION: "release-2.32.6"
+  OPENCV_VERSION: "4.11.0"
   CATCH_VERSION: "v3.8.1"
+  SPDLOG_VERSION: "v1.15.3"
   EXIV2_VERSION: "v0.28.5"
 
 jobs:
@@ -27,76 +30,91 @@ jobs:
       with:
         submodules: true
 
-    - name: Install prerequisites
+    - name: Install build prerequisites
       run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libopencv-dev libsdl2-dev libspdlog-dev catch2
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build \
+          libgtk-3-dev libwayland-dev libxkbcommon-dev libasound2-dev \
+          libpulse-dev libudev-dev libdbus-1-dev libdrm-dev libgbm-dev
 
-    - name: Cache exiv2
+    - name: Cache OpenCV
       uses: actions/cache@v4
-      id: cache-exiv2
+      id: cache-opencv
       with:
-        path: exiv2/install
-        key: ${{runner.os}}-exiv2-${{env.EXIV2_VERSION}}-${{env.BUILD_TYPE}}-24.04
+        path: opencv/install
+        key: ${{runner.os}}-opencv-${{env.OPENCV_VERSION}}-static-24.04-${{hashFiles('misc/build/opencv-minimal-flags.txt')}}
 
-    - name: Install exiv2
-      if: steps.cache-exiv2.outputs.cache-hit != 'true'
+    - name: Install OpenCV
+      if: steps.cache-opencv.outputs.cache-hit != 'true'
       run: |
-        git clone https://github.com/Exiv2/exiv2.git --depth 1 --branch $EXIV2_VERSION
-        cd exiv2
-        cmake -B build \
+        git clone https://github.com/opencv/opencv.git --depth 1 --branch $OPENCV_VERSION
+        cd opencv
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_INSTALL_PREFIX=install \
-          `cat ../misc/build/exiv2-minimal-flags.txt`
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          $(cat ../misc/build/opencv-minimal-flags.txt)
         cmake --build build --target install -j $(nproc)
         cd ..
 
-    - name: Configure CMake
-      run: |
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-          -DCMAKE_INSTALL_PREFIX=install \
-          -DBUILD_TESTING=ON \
-          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-          -Dexiv2_ROOT=`pwd`/exiv2/install
-
-    - name: Build
-      run: cmake --build build -j $(nproc) --target install
-
-    - name: Run Tests
-      run: |
-        cd build
-        ctest --output-on-failure
-        cd ..
-
-  build-ubuntu-22:
-    runs-on: ubuntu-22.04
-
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
-
-    steps:
-    - uses: actions/checkout@v4
+    - name: Cache SDL
+      uses: actions/cache@v4
+      id: cache-sdl
       with:
-        submodules: true
+        path: sdl/install
+        key: ${{runner.os}}-sdl-${{env.SDL_VERSION}}-static-24.04
 
-    - name: Install prerequisites
+    - name: Install SDL
+      if: steps.cache-sdl.outputs.cache-hit != 'true'
       run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libopencv-dev libsdl2-dev libspdlog-dev
+        git clone https://github.com/libsdl-org/SDL.git --depth 1 --branch $SDL_VERSION
+        cd sdl
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_INSTALL_PREFIX=install \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          -DSDL_MISC=OFF
+        cmake --build build --target install -j $(nproc)
+        cd ..
 
     - name: Cache Catch
       uses: actions/cache@v4
       id: cache-catch
       with:
         path: catch/install
-        key: ${{runner.os}}-catch-${{env.CATCH_VERSION}}-${{env.BUILD_TYPE}}-22.04
+        key: ${{runner.os}}-catch-${{env.CATCH_VERSION}}-static-${{env.BUILD_TYPE}}-24.04
 
     - name: Install Catch
       if: steps.cache-catch.outputs.cache-hit != 'true'
       run: |
         git clone https://github.com/catchorg/Catch2.git catch --depth 1 --branch $CATCH_VERSION
         cd catch
-        cmake -B build -DCMAKE_INSTALL_PREFIX=install -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TESTING=OFF
-        cmake --build build -j $(nproc) --target install
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DCMAKE_INSTALL_PREFIX=install \
+          -DBUILD_TESTING=OFF
+        cmake --build build --target install -j $(nproc)
+        cd ..
+
+    - name: Cache spdlog
+      uses: actions/cache@v4
+      id: cache-spdlog
+      with:
+        path: spdlog/install
+        key: ${{runner.os}}-spdlog-${{env.SPDLOG_VERSION}}-static-${{env.BUILD_TYPE}}-24.04
+
+    - name: Install spdlog
+      if: steps.cache-spdlog.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/gabime/spdlog.git --depth 1 --branch $SPDLOG_VERSION
+        cd spdlog
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DCMAKE_INSTALL_PREFIX=install \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        cmake --build build --target install -j $(nproc)
         cd ..
 
     - name: Cache exiv2
@@ -104,28 +122,35 @@ jobs:
       id: cache-exiv2
       with:
         path: exiv2/install
-        key: ${{runner.os}}-exiv2-${{env.EXIV2_VERSION}}-${{env.BUILD_TYPE}}-22.04
+        key: ${{runner.os}}-exiv2-${{env.EXIV2_VERSION}}-static-${{env.BUILD_TYPE}}-24.04
 
     - name: Install exiv2
       if: steps.cache-exiv2.outputs.cache-hit != 'true'
       run: |
         git clone https://github.com/Exiv2/exiv2.git --depth 1 --branch $EXIV2_VERSION
         cd exiv2
-        cmake -B build \
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_INSTALL_PREFIX=install \
-          `cat ../misc/build/exiv2-minimal-flags.txt`
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          $(cat ../misc/build/exiv2-minimal-flags.txt)
         cmake --build build --target install -j $(nproc)
         cd ..
 
     - name: Configure CMake
       run: |
-        cmake -B build \
+        cmake -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
           -DCMAKE_INSTALL_PREFIX=install \
           -DBUILD_TESTING=ON \
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-          -DCatch2_ROOT=`pwd`/catch/install \
-          -Dexiv2_ROOT=`pwd`/exiv2/install
+          -DOpenCV_STATIC=ON \
+          -DOpenCV_ROOT=$(pwd)/opencv/install \
+          -DSDL2_ROOT=$(pwd)/sdl/install \
+          -Dspdlog_ROOT=$(pwd)/spdlog/install \
+          -DCatch2_ROOT=$(pwd)/catch/install \
+          -Dexiv2_ROOT=$(pwd)/exiv2/install
 
     - name: Build
       run: cmake --build build -j $(nproc) --target install
@@ -135,3 +160,9 @@ jobs:
         cd build
         ctest --output-on-failure
         cd ..
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: xpano-ubuntu-24.04
+        path: install/

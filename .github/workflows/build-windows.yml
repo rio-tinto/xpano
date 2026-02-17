@@ -1,0 +1,176 @@
+name: build-windows
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore: [ "misc/site/**" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+  SDL_VERSION: "release-2.32.6"
+  OPENCV_VERSION: "4.11.0"
+  CATCH_VERSION: "v3.8.1"
+  SPDLOG_VERSION: "v1.15.3"
+  EXIV2_VERSION: "v0.28.5"
+  GENERATOR: "Ninja Multi-Config"
+
+jobs:
+  build-windows-latest:
+    runs-on: windows-latest
+
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Cache OpenCV
+      uses: actions/cache@v4
+      id: cache-opencv
+      with:
+        path: opencv/install
+        key: ${{runner.os}}-opencv-${{env.OPENCV_VERSION}}-static-ninja-${{hashFiles('misc/build/opencv-minimal-flags.txt')}}
+
+    - name: Install OpenCV
+      if: steps.cache-opencv.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/opencv/opencv.git --depth 1 --branch $env:OPENCV_VERSION
+        cd opencv
+        cmake -B build -G "$env:GENERATOR" `
+          -DBUILD_SHARED_LIBS=OFF `
+          -DCMAKE_INSTALL_PREFIX=install `
+          @(Get-Content ../misc/build/opencv-minimal-flags.txt)
+        cmake --build build --target install --config Release
+        cd ..
+
+    - name: Cache SDL
+      uses: actions/cache@v4
+      id: cache-sdl
+      with:
+        path: |
+          sdl/install
+          sdl/LICENSE.txt
+        key: ${{runner.os}}-sdl-${{env.SDL_VERSION}}-static-ninja
+
+    - name: Install SDL
+      if: steps.cache-sdl.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/libsdl-org/SDL.git --depth 1 --branch $env:SDL_VERSION
+        cd sdl
+        cmake -B build -G "$env:GENERATOR" `
+          -DBUILD_SHARED_LIBS=OFF `
+          -DCMAKE_INSTALL_PREFIX=install `
+          -DSDL_FORCE_STATIC_VCRT=ON `
+          -DSDL_MISC=OFF
+        cmake --build build --target install --config Release
+        cd ..
+
+    - name: Cache Catch
+      uses: actions/cache@v4
+      id: cache-catch
+      with:
+        path: catch/install
+        key: ${{runner.os}}-catch-${{env.CATCH_VERSION}}-static-${{env.BUILD_TYPE}}-ninja
+
+    - name: Install Catch
+      if: steps.cache-catch.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/catchorg/Catch2.git catch --depth 1 --branch $env:CATCH_VERSION
+        cd catch
+        cmake -B build -G "$env:GENERATOR" `
+          -DCMAKE_INSTALL_PREFIX=install `
+          -DBUILD_TESTING=OFF `
+          -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+        cmake --build build --target install --config $env:BUILD_TYPE
+        cd ..
+
+    - name: Cache spdlog
+      uses: actions/cache@v4
+      id: cache-spdlog
+      with:
+        path: |
+          spdlog/LICENSE
+          spdlog/build/install
+        key: ${{runner.os}}-spdlog-${{env.SPDLOG_VERSION}}-static-${{env.BUILD_TYPE}}-ninja
+
+    - name: Install spdlog
+      if: steps.cache-spdlog.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/gabime/spdlog.git --depth 1 --branch $env:SPDLOG_VERSION
+        cd spdlog
+        cmake -B build -G "$env:GENERATOR" `
+          -DCMAKE_INSTALL_PREFIX=build/install `
+          -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+        cmake --build build --target install --config $env:BUILD_TYPE
+        cd ..
+
+    - name: Cache exiv2
+      uses: actions/cache@v4
+      id: cache-exiv2
+      with:
+        path: |
+          exiv2/COPYING
+          exiv2/install
+        key: ${{runner.os}}-exiv2-${{env.EXIV2_VERSION}}-static-${{env.BUILD_TYPE}}-ninja
+
+    - name: Install exiv2
+      if: steps.cache-exiv2.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/Exiv2/exiv2.git --depth 1 --branch $env:EXIV2_VERSION
+        cd exiv2
+        cmake -B build -G "$env:GENERATOR" `
+          -DBUILD_SHARED_LIBS=OFF `
+          -DEXIV2_ENABLE_DYNAMIC_RUNTIME=OFF `
+          -DCMAKE_INSTALL_PREFIX=install `
+          @(Get-Content ../misc/build/exiv2-minimal-flags.txt)
+        cmake --build build --target install --config $env:BUILD_TYPE
+        cd ..
+
+    - name: Bundle extra licenses
+      run: |
+        New-Item -Name "licenses" -ItemType "directory"
+        Copy-Item "sdl/LICENSE.txt" -Destination "licenses/sdl-license.txt"
+        Copy-Item "spdlog/LICENSE" -Destination "licenses/spdlog-license.txt"
+        Copy-Item "exiv2/COPYING" -Destination "licenses/exiv2-license.txt"
+
+    - name: Configure CMake
+      run: |
+        $cwd = (Get-Location).Path -replace "\\", "/"
+        cmake -B build -G "$env:GENERATOR" `
+          -DBUILD_TESTING=ON `
+          -DXPANO_EXTRA_LICENSES=licenses `
+          -DXPANO_STATIC_VCRT=ON `
+          -DCMAKE_INSTALL_PREFIX=install `
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+          -DSDL2_ROOT="${cwd}/sdl/install" `
+          -DOpenCV_STATIC=ON `
+          -DOpenCV_ROOT="${cwd}/opencv/install" `
+          -Dspdlog_ROOT="${cwd}/spdlog/build/install" `
+          -DCatch2_ROOT="${cwd}/catch/install" `
+          -Dexiv2_ROOT="${cwd}/exiv2/install"
+
+    - name: Build
+      run: cmake --build build --config $env:BUILD_TYPE --target install
+
+    - name: Run Tests
+      run: |
+        cd build
+        ctest -C $env:BUILD_TYPE --output-on-failure
+        cd ..
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: xpano-windows
+        path: install/
