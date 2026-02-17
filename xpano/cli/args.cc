@@ -108,6 +108,9 @@ void ParseArg(Args* result, const std::string& arg) {
   } else if (arg.starts_with(kMatchingTypeFlag)) {
     auto substr = arg.substr(kMatchingTypeFlag.size());
     result->matching_type = ParseMatchingType(substr);
+    if (!result->matching_type) {
+      spdlog::warn("Invalid --matching-type '{}', using default (auto). Valid: auto, single, none", substr);
+    }
   } else if (arg.starts_with(kMatchThresholdFlag)) {
     auto substr = arg.substr(kMatchThresholdFlag.size());
     result->match_threshold = ParseInt(substr);
@@ -159,10 +162,6 @@ bool ValidateArgs(const Args& args) {
   if (args.output_path && args.run_gui) {
     spdlog::error(
         "Specifying --gui and --output together is not yet supported.");
-    return false;
-  }
-  if (args.matching_type.has_value() && !args.matching_type.value()) {
-    spdlog::error("Invalid value for --matching-type. Use: auto, single, none");
     return false;
   }
   if (args.match_threshold.has_value() && !args.match_threshold.value()) {
