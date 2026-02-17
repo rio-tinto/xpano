@@ -3,6 +3,7 @@
 
 #include "xpano/cli/args.h"
 
+#include <algorithm>
 #include <charconv>
 #include <exception>
 #include <filesystem>
@@ -195,6 +196,24 @@ bool ValidateArgs(const Args& args) {
 
 }  // namespace
 
+std::vector<std::filesystem::path> ExpandDirectories(
+    const std::vector<std::filesystem::path>& paths) {
+  std::vector<std::filesystem::path> result;
+  for (const auto& path : paths) {
+    if (std::filesystem::is_directory(path)) {
+      spdlog::info("Expanding directory: {}", path.string());
+      for (const auto& entry : std::filesystem::directory_iterator(path)) {
+        if (entry.is_regular_file()) {
+          result.push_back(entry.path());
+        }
+      }
+    } else {
+      result.push_back(path);
+    }
+  }
+  return result;
+}
+
 std::optional<Args> ParseArgs(int argc, char** argv) {
   Args args;
   try {
@@ -204,12 +223,16 @@ std::optional<Args> ParseArgs(int argc, char** argv) {
     return {};
   }
 
+  // Expand any directories to their contained files
+  args.input_paths = ExpandDirectories(args.input_paths);
+
   auto supported_inputs = utils::path::KeepSupported(args.input_paths);
   if (supported_inputs.empty() && !args.input_paths.empty()) {
     spdlog::error("No supported images provided!");
     return {};
   }
   args.input_paths = supported_inputs;
+  std::sort(args.input_paths.begin(), args.input_paths.end());
 
   if (!ValidateArgs(args)) {
     return {};
@@ -219,7 +242,7 @@ std::optional<Args> ParseArgs(int argc, char** argv) {
 }
 
 void PrintHelp() {
-  spdlog::info("Usage: Xpano [<input files>] [options]");
+  spdlog::info("Usage: Xpano [<input files or directories>] [options]");
   spdlog::info("");
   spdlog::info("Options:");
   spdlog::info("  --output=<path>          Output file path");
