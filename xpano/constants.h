@@ -94,7 +94,7 @@ constexpr double kInpaintingRadiusStep = 1.0;
 constexpr float kMegapixel = 1'000'000;
 
 const std::string kDefaultPanoSuffix = "_pano";
-constexpr int kMaxImageSizeForCLI = 8192;
+constexpr int kMaxImageSizeForCLI = 2048; // originally 8192 which is too slow, GUI default is 1024
 
 constexpr int kExifDefaultOrientation = 1;
 
