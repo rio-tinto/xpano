@@ -201,8 +201,8 @@ bool ValidateArgs(const Args& args) {
   }
   if (args.max_pano_mpx.has_value()) {
     int val = *args.max_pano_mpx;
-    if (val < 1 || val > 500) {
-      spdlog::error("--max-pano-mpx must be between 1 and 500");
+    if (val < 1 || val > 5000) {
+      spdlog::error("--max-pano-mpx must be between 1 and 5000");
       return false;
     }
   }
