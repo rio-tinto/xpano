@@ -35,6 +35,7 @@ struct Args {
   // Stitching
   std::optional<algorithm::WaveCorrectionType> wave_correction;
   std::optional<int> max_pano_mpx;
+  bool full_res = true;
 };
 
 std::optional<Args> ParseArgs(int argc, char** argv);

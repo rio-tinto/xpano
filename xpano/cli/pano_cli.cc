@@ -125,6 +125,7 @@ ResultType RunPipeline(const Args &args) {
 
   auto stitching_task = pipeline.RunStitching(
       stitcher_data, {.pano_id = 0,
+                      .full_res = args.full_res,
                       .export_path = export_path,
                       .metadata = metadata_opts,
                       .compression = compression_opts,

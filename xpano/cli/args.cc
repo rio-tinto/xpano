@@ -37,6 +37,7 @@ const std::string kCopyMetadataFlag = "--copy-metadata";
 const std::string kNoCopyMetadataFlag = "--no-copy-metadata";
 const std::string kWaveCorrectionFlag = "--wave-correction=";
 const std::string kMaxPanoMpxFlag = "--max-pano-mpx=";
+const std::string kNoFullResFlag = "--no-full-res";
 
 std::optional<int> ParseInt(const std::string& str) {
   int value;
@@ -133,6 +134,8 @@ void ParseArg(Args* result, const std::string& arg) {
   } else if (arg.starts_with(kMaxPanoMpxFlag)) {
     auto substr = arg.substr(kMaxPanoMpxFlag.size());
     result->max_pano_mpx = ParseInt(substr);
+  } else if (arg == kNoFullResFlag) {
+    result->full_res = false;
   } else {
     result->input_paths.emplace_back(arg);
   }
@@ -257,7 +260,7 @@ std::optional<Args> ParseArgs(int argc, char** argv) {
 }
 
 void PrintHelp() {
-  spdlog::info("Xpano v1.3 - added matching type flag");
+  spdlog::info("Xpano v1.4 - full resolution stitching enabled by default");
   spdlog::info("");
   spdlog::info("Usage: Xpano [<input files or directories>] [options]");
   spdlog::info("");
@@ -297,6 +300,7 @@ void PrintHelp() {
   spdlog::info("                           Types: off, auto, horizontal, vertical");
   spdlog::info("  --max-pano-mpx=<N>       Max panorama size in megapixels (default: {})",
                kMaxPanoMpx);
+  spdlog::info("  --no-full-res            Use preview resolution (2048 px) instead of full resolution");
   spdlog::info("");
   spdlog::info("Supported formats: {}", fmt::join(kSupportedExtensions, ", "));
 }
