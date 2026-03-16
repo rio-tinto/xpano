@@ -90,6 +90,7 @@ struct StitchUserOptions {
   FeatureType feature = FeatureType::kSift;
   WaveCorrectionType wave_correction = WaveCorrectionType::kAuto;
   float match_conf = kDefaultMatchConf;
+  float conf_thresh = kDefaultConfThresh;
   int max_pano_mpx = kMaxPanoMpx;
   BlendingMethod blending_method = kDefaultBlendingMethod;
 };

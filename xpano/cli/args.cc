@@ -37,6 +37,8 @@ const std::string kCopyMetadataFlag = "--copy-metadata";
 const std::string kNoCopyMetadataFlag = "--no-copy-metadata";
 const std::string kWaveCorrectionFlag = "--wave-correction=";
 const std::string kMaxPanoMpxFlag = "--max-pano-mpx=";
+const std::string kMatchConfFlag = "--match-conf=";
+const std::string kConfThreshFlag = "--conf-thresh=";
 const std::string kNoFullResFlag = "--no-full-res";
 
 std::optional<int> ParseInt(const std::string& str) {
@@ -134,6 +136,12 @@ void ParseArg(Args* result, const std::string& arg) {
   } else if (arg.starts_with(kMaxPanoMpxFlag)) {
     auto substr = arg.substr(kMaxPanoMpxFlag.size());
     result->max_pano_mpx = ParseInt(substr);
+  } else if (arg.starts_with(kMatchConfFlag)) {
+    auto substr = arg.substr(kMatchConfFlag.size());
+    result->match_conf = ParseFloat(substr);
+  } else if (arg.starts_with(kConfThreshFlag)) {
+    auto substr = arg.substr(kConfThreshFlag.size());
+    result->conf_thresh = ParseFloat(substr);
   } else if (arg == kNoFullResFlag) {
     result->full_res = false;
   } else {
@@ -206,6 +214,22 @@ bool ValidateArgs(const Args& args) {
     int val = *args.max_pano_mpx;
     if (val < 1 || val > 5000) {
       spdlog::error("--max-pano-mpx must be between 1 and 5000");
+      return false;
+    }
+  }
+  if (args.match_conf.has_value()) {
+    float val = *args.match_conf;
+    if (val < kMinMatchConf || val > kMaxMatchConf) {
+      spdlog::error("--match-conf must be between {} and {}", kMinMatchConf,
+                    kMaxMatchConf);
+      return false;
+    }
+  }
+  if (args.conf_thresh.has_value()) {
+    float val = *args.conf_thresh;
+    if (val < kMinConfThresh || val > kMaxConfThresh) {
+      spdlog::error("--conf-thresh must be between {} and {}", kMinConfThresh,
+                    kMaxConfThresh);
       return false;
     }
   }
@@ -300,6 +324,15 @@ void PrintHelp() {
   spdlog::info("                           Types: off, auto, horizontal, vertical");
   spdlog::info("  --max-pano-mpx=<N>       Max panorama size in megapixels (default: {})",
                kMaxPanoMpx);
+  spdlog::info("  --match-conf=<F>         Internal feature match confidence, {} - {} (default: {})",
+               kMinMatchConf, kMaxMatchConf, kDefaultMatchConf);
+  spdlog::info("                           Lower values accept more (weaker) pairwise matches,");
+  spdlog::info("                           which gives the bundle adjuster more constraints.");
+  spdlog::info("                           Try lowering if you get ERR_CAMERA_PARAMS_ADJUST_FAIL.");
+  spdlog::info("  --conf-thresh=<F>        Pano confidence threshold, {} - {} (default: {})",
+               kMinConfThresh, kMaxConfThresh, kDefaultConfThresh);
+  spdlog::info("                           Lower values include image pairs with weaker matches");
+  spdlog::info("                           in bundle adjustment. Lower if ERR_CAMERA_PARAMS_ADJUST_FAIL.");
   spdlog::info("  --no-full-res            Use preview resolution (2048 px) instead of full resolution");
   spdlog::info("");
   spdlog::info("Supported formats: {}", fmt::join(kSupportedExtensions, ", "));

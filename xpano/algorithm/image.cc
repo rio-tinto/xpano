@@ -24,7 +24,8 @@ thread_local cv::Ptr<cv::Feature2D> sift = cv::SIFT::create(kNumFeatures);
 
 std::optional<cv::Size> PreviewSize(const cv::Size& full_size,
                                     int preview_longer_side) {
-  if (std::max(full_size.width, full_size.height) <= preview_longer_side) {
+  if (preview_longer_side == 0 ||
+      std::max(full_size.width, full_size.height) <= preview_longer_side) {
     return {};
   }
 

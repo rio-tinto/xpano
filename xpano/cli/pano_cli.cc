@@ -68,7 +68,7 @@ ResultType RunPipeline(const Args &args) {
   }
 
   auto loading_task = pipeline.RunLoading(
-      args.input_paths, {.preview_longer_side = kMaxImageSizeForCLI},
+      args.input_paths, {.preview_longer_side = 0},
       matching_opts);
 
   pipeline::StitcherData stitcher_data;
@@ -121,6 +121,12 @@ ResultType RunPipeline(const Args &args) {
   }
   if (args.max_pano_mpx) {
     stitch_opts.max_pano_mpx = *args.max_pano_mpx;
+  }
+  if (args.match_conf) {
+    stitch_opts.match_conf = *args.match_conf;
+  }
+  if (args.conf_thresh) {
+    stitch_opts.conf_thresh = *args.conf_thresh;
   }
 
   auto stitching_task = pipeline.RunStitching(

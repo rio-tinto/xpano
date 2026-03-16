@@ -80,6 +80,9 @@ constexpr float kDefaultPaniniB = 1.0f;
 constexpr float kDefaultMatchConf = 0.25f;
 constexpr float kMinMatchConf = 0.1f;
 constexpr float kMaxMatchConf = 0.4f;
+constexpr float kDefaultConfThresh = 1.0f;
+constexpr float kMinConfThresh = 0.1f;
+constexpr float kMaxConfThresh = 2.0f;
 
 const std::string kAppConfigFilename = "app_config.alpaca";
 const std::string kUserConfigFilename = "user_config.alpaca";

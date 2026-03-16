@@ -35,6 +35,8 @@ struct Args {
   // Stitching
   std::optional<algorithm::WaveCorrectionType> wave_correction;
   std::optional<int> max_pano_mpx;
+  std::optional<float> match_conf;
+  std::optional<float> conf_thresh;
   bool full_res = true;
 };
 
