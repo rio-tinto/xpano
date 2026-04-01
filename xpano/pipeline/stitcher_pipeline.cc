@@ -252,6 +252,12 @@ StitchingResult RunStitchingPipeline(
     };
   }
 
+  spdlog::info("Stitched {} / {} images:", cameras->composited_component.size(),
+               pano.ids.size());
+  for (const int idx : cameras->composited_component) {
+    spdlog::info("  {}", images[pano.ids[idx]].GetPath().string());
+  }
+
   progress->SetTaskType(ProgressType::kAutoCrop);
   auto auto_crop = algorithm::FindLargestCrop(mask);
   progress->NotifyTaskDone();

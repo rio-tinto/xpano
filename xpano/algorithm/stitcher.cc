@@ -354,6 +354,7 @@ Status Stitcher::ComposePanorama(cv::OutputArray pano) {
   spdlog::info("Compositing...");
   auto compositing_total_timer = Timer();
 
+  composited_indices_.clear();
   blender_->prepare(roi.rect);
   for (size_t img_idx = 0; img_idx < imgs_.size(); ++img_idx) {
     NextTask(ProgressType::kStitchCompose);
@@ -364,6 +365,7 @@ Status Stitcher::ComposePanorama(cv::OutputArray pano) {
     }
 
     spdlog::trace("Compositing image #{}", indices_[img_idx] + 1);
+    composited_indices_.push_back(indices_[img_idx]);
     auto compositing_timer = Timer();
 
     cv::UMat img = imgs_[img_idx];

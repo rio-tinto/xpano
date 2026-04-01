@@ -224,6 +224,7 @@ class Stitcher {
                 cv::OutputArray pano);
 
   [[nodiscard]] std::vector<int> Component() const { return indices_; }
+  [[nodiscard]] std::vector<int> CompositedComponent() const { return composited_indices_; }
   [[nodiscard]] std::vector<cv::detail::CameraParams> Cameras() const {
     return cameras_;
   }
@@ -269,6 +270,7 @@ class Stitcher {
   std::vector<cv::detail::MatchesInfo> pairwise_matches_;
   std::vector<cv::UMat> seam_est_imgs_;
   std::vector<int> indices_;
+  std::vector<int> composited_indices_;
   std::vector<cv::detail::CameraParams> cameras_;
   cv::UMat result_mask_;
 

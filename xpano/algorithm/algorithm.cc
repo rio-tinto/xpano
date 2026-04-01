@@ -293,7 +293,8 @@ StitchResult Stitch(const std::vector<cv::Mat>& images,
   }
 
   auto result_cameras = Cameras{
-      stitcher->Cameras(), stitcher->Component(), user_options.wave_correction,
+      stitcher->Cameras(), stitcher->Component(),
+      stitcher->CompositedComponent(), user_options.wave_correction,
       stitcher->WaveCorrectKind(), stitcher->GetWarpHelper()};
   return {status, pano, mask, std::move(result_cameras)};
 }
