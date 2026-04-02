@@ -169,6 +169,16 @@ ResultType RunPipeline(const Args &args) {
   spdlog::info("Size: {} x {}", stitching_result.pano->cols,
                stitching_result.pano->rows);
 
+  if (stitching_result.cameras) {
+    const auto& pano = stitcher_data.panos[0];
+    spdlog::info("Stitched {} / {} images:",
+                 stitching_result.cameras->composited_component.size(),
+                 pano.ids.size());
+    for (const int idx : stitching_result.cameras->composited_component) {
+      spdlog::info(" Image used: {}", stitcher_data.images[pano.ids[idx]].GetPath().string());
+    }
+  }
+
   return ResultType::kSuccess;
 }
 }  // namespace
